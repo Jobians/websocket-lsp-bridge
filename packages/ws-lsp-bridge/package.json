@@ -1,6 +1,6 @@
 {
   "name": "ws-lsp-bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "WebSocket bridge to connect any editor/client to LSP servers",
   "main": "src/index.js",
   "bin": {

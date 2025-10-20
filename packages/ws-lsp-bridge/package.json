@@ -1,0 +1,30 @@
+{
+  "name": "ws-lsp-bridge",
+  "version": "1.0.0",
+  "description": "WebSocket bridge to connect any editor/client to LSP servers",
+  "main": "src/index.js",
+  "bin": {
+    "wslsp": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "vscode-jsonrpc": "^8.2.1",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": ["lsp", "websocket", "editor", "language-server", "bridge", "ws-lsp"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jobians/websocket-lsp-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jobians/websocket-lsp-bridge/issues"
+  },
+  "homepage": "https://github.com/jobians/websocket-lsp-bridge#readme",
+  "license": "MIT",
+  "type": "module"
+}

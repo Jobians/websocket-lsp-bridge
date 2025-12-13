@@ -52,31 +52,62 @@ function normalizePath(path, includeFilePrefix = false, useAcodeUrlTransformer =
   if (!path) return '';
 
   let normalized;
+  
+  // Define base prefixes (lengths derived automatically)
+  // Legacy internal storage ROOT
+  const LEGACY_EMULATED_ROOT = 'file:///storage/emulated/0/';
+  // Android Content External Document ROOT
+  const ANDROID_CONTENT_EXTERNAL_DOC_ROOT = 'content://com.android.externalstorage.documents';
+  const PRIMARY_PREFIX = 'primary:';
+  const CONTENT_TREE_PREFIX = 'content://com.android.externalstorage.documents/tree/primary%3A';
 
   if (useAcodeUrlTransformer) {
+    // Back Off for these Paths
+    if(path === LEGACY_EMULATED_ROOT || path === ANDROID_CONTENT_EXTERNAL_DOC_ROOT) {
+      return normalizePath(path, includeFilePrefix, false)
+    }
+
     const acodeUrl = acode.require('Url');
     if (!acodeUrl) return normalizePath(path, includeFilePrefix, false)
 
     normalized = acodeUrl.pathname(path);
 
-    // Slice off `/` if there's two 🙃 ~ UnschooledGamer
+    // Slice off one `/`, if there's two of them 🙃 ~ UnschooledGamer
     if (normalized.startsWith('//'))
-      return normalized.slice(1);
+      normalized = normalized.slice(1);
 
     return normalized;
   }
-
-  if (path.includes('::')) {
-    const [, raw] = path.split('::');
-    normalized = raw?.startsWith('primary:') ? `/sdcard/${raw.slice('primary:'.length)}` : raw;
-  } else if (path.startsWith('file:///storage/emulated/0/')) {
-    normalized = `/sdcard/${path.slice('file:///storage/emulated/0/'.length)}`;
-  } else {
+  
+  // Handle ContentProvider secondary URI (:: separator)
+  // Gets the path after the separator, where primary means Emulated internal/primary Storage/refered as `/sdcard/`
+  
+  const colonIndex = path.indexOf('::');
+  
+  if (colonIndex !== -1) {
+    const secondaryPath = path.slice(colonIndex + 2);
+    normalized = secondaryPath.startsWith(PRIMARY_PREFIX) 
+      ? `/sdcard/${secondaryPath.slice(PRIMARY_PREFIX.length)}` 
+      : secondaryPath;
+  }
+  // Handle ContentProvider document tree URI 
+  // When there's no secondary path/file related paths
+  else if (path.startsWith(CONTENT_TREE_PREFIX)) {
+      normalized = `/sdcard/${path.slice(CONTENT_TREE_PREFIX.length)}`;
+  }
+  
+  // Handle legacy emulated storage path
+  else if (path.startsWith(LEGACY_EMULATED_ROOT)) {
+    normalized = `/sdcard/${path.slice(LEGACY_EMULATED_ROOT.length)}`;
+  }
+  
+  // Passthrough
+  else {
     normalized = path;
   }
-
-  if (includeFilePrefix) {
-    return normalized.startsWith('file://') ? normalized : `file://${normalized}`;
+  
+  if (includeFilePrefix && !normalized.startsWith('file://')) {
+    return `file://${normalized}`;
   }
 
   return normalized;

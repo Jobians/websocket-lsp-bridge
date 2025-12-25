@@ -275,8 +275,9 @@ class LSPClient {
 
     const socket = new WebSocket(socketUrl);
     socket.onclose = (event) => {
+      this.log(serverOption.serviceName, event);
       if (!event.wasClean) {
-        this.showAlert(`LSP server "${serverOption.serviceName}" closed unexpectedly.`);
+        this.showToast(`LSP server "${serverOption.serviceName}" closed unexpectedly.`);
       }
     };
 

@@ -1,6 +1,7 @@
 import plugin from '../plugin.json';
 const page = acode.require('page');
 const alert = acode.require('alert');
+const urlModule = acode.require('Url');
 const settings = acode.require('settings');
 const openfolder = acode.require('openfolder');
 const actionStack = acode.require('actionStack');
@@ -48,66 +49,14 @@ const DEFAULT_SERVER_OPTIONS = [
   }
 ];
 
-function normalizePath(path, includeFilePrefix = false, useAcodeUrlTransformer = false) {
-  if (!path) return '';
+function normalizePath(path, includeFilePrefix = false) {
+  let normalized = urlModule.pathname(path) || '';
 
-  let normalized;
-  
-  // Define base prefixes (lengths derived automatically)
-  // Legacy internal storage ROOT
-  const LEGACY_EMULATED_ROOT = 'file:///storage/emulated/0/';
-  // Android Content External Document ROOT
-  const ANDROID_CONTENT_EXTERNAL_DOC_ROOT = 'content://com.android.externalstorage.documents';
-  const PRIMARY_PREFIX = 'primary:';
-  const CONTENT_TREE_PREFIX = 'content://com.android.externalstorage.documents/tree/primary%3A';
+  // Reduce multiple leading slashes to a single slash
+  normalized = normalized.replace(/^\/+/, '/');
 
-  if (useAcodeUrlTransformer) {
-    // Back Off for these Paths
-    if(path === LEGACY_EMULATED_ROOT || path === ANDROID_CONTENT_EXTERNAL_DOC_ROOT) {
-      return normalizePath(path, includeFilePrefix, false)
-    }
-
-    const acodeUrl = acode.require('Url');
-    if (!acodeUrl) return normalizePath(path, includeFilePrefix, false)
-
-    normalized = acodeUrl.pathname(path);
-
-    // Slice off one `/`, if there's two of them 🙃 ~ UnschooledGamer
-    if (normalized.startsWith('//'))
-      normalized = normalized.slice(1);
-
-    return normalized;
-  }
-  
-  // Handle ContentProvider secondary URI (:: separator)
-  // Gets the path after the separator, where primary means Emulated internal/primary Storage/refered as `/sdcard/`
-  
-  const colonIndex = path.indexOf('::');
-  
-  if (colonIndex !== -1) {
-    const secondaryPath = path.slice(colonIndex + 2);
-    normalized = secondaryPath.startsWith(PRIMARY_PREFIX) 
-      ? `/sdcard/${secondaryPath.slice(PRIMARY_PREFIX.length)}` 
-      : secondaryPath;
-  }
-  // Handle ContentProvider document tree URI 
-  // When there's no secondary path/file related paths
-  else if (path.startsWith(CONTENT_TREE_PREFIX)) {
-      normalized = `/sdcard/${path.slice(CONTENT_TREE_PREFIX.length)}`;
-  }
-  
-  // Handle legacy emulated storage path
-  else if (path.startsWith(LEGACY_EMULATED_ROOT)) {
-    normalized = `/sdcard/${path.slice(LEGACY_EMULATED_ROOT.length)}`;
-  }
-  
-  // Passthrough
-  else {
-    normalized = path;
-  }
-  
-  if (includeFilePrefix && !normalized.startsWith('file://')) {
-    return `file://${normalized}`;
+  if (includeFilePrefix) {
+    normalized = `file://${normalized}`;
   }
 
   return normalized;
@@ -250,7 +199,7 @@ class LSPClient {
         savedWorkspaces
       )) {
         const folderIsOpen = openFolders.some((f) =>
-          normalizePath(f.url, true, true).includes(workspacePath)
+          normalizePath(f.url, true).includes(workspacePath)
         );
         if (!folderIsOpen) continue;
 
@@ -277,7 +226,7 @@ class LSPClient {
     const fileUri = editorManager.activeFile?.uri;
     const folder = fileUri && openfolder.find(fileUri);
     if (!folder?.url) return null;
-    return normalizePath(folder.url, true, true);
+    return normalizePath(folder.url, true);
   }
 
   getCurrentFilePath() {

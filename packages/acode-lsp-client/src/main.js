@@ -1,6 +1,7 @@
 import plugin from '../plugin.json';
 const page = acode.require('page');
 const alert = acode.require('alert');
+const urlModule = acode.require('Url');
 const settings = acode.require('settings');
 const openfolder = acode.require('openfolder');
 const actionStack = acode.require('actionStack');
@@ -49,21 +50,13 @@ const DEFAULT_SERVER_OPTIONS = [
 ];
 
 function normalizePath(path, includeFilePrefix = false) {
-  if (!path) return '';
+  let normalized = urlModule.pathname(path) || '';
 
-  let normalized;
-
-  if (path.includes('::')) {
-    const [, raw] = path.split('::');
-    normalized = raw?.startsWith('primary:') ? `/sdcard/${raw.slice('primary:'.length)}` : raw;
-  } else if (path.startsWith('file:///storage/emulated/0/')) {
-    normalized = `/sdcard/${path.slice('file:///storage/emulated/0/'.length)}`;
-  } else {
-    normalized = path;
-  }
+  // Reduce multiple leading slashes to a single slash
+  normalized = normalized.replace(/^\/+/, '/');
 
   if (includeFilePrefix) {
-    return normalized.startsWith('file://') ? normalized : `file://${normalized}`;
+    normalized = `file://${normalized}`;
   }
 
   return normalized;
@@ -102,7 +95,7 @@ class WorkspaceStorage {
   constructor(storageKey) {
     this.storageKey = storageKey;
   }
-  
+
   save(path, serverNames, metadata) {
     const allWorkspaces = this.load();
     allWorkspaces[path] = {
@@ -147,7 +140,7 @@ class LSPClient {
 
     this.log('Loaded', this.serverOptions.length, 'server options');
   }
-  
+
   log(...args) {
     if (!this.debug) return;
     setTimeout(() => console.log('[LSP][DEBUG]', ...args), 200);
@@ -176,7 +169,7 @@ class LSPClient {
     }
     return true;
   }
-  
+
   saveWorkspace(workspacePath, selectedServers, workspaceMetadata) {
     if (!Array.isArray(selectedServers)) selectedServers = [selectedServers];
     const serviceNames = selectedServers.map((s) => (typeof s === 'string' ? s : s.serviceName));
@@ -228,7 +221,7 @@ class LSPClient {
       this.log('Error restoring workspaces:', err);
     }
   }
-  
+
   getActiveFolderPath() {
     const fileUri = editorManager.activeFile?.uri;
     const folder = fileUri && openfolder.find(fileUri);
@@ -261,7 +254,7 @@ class LSPClient {
 
     this.log(`Editor attached to workspace: ${workspacePath}`);
   }
-  
+
   createLSPServer(workspacePath, serverOption, workspaceMetadata) {
     if (!workspacePath) return null;
 
@@ -331,7 +324,7 @@ class LSPClient {
     this.activeServers = {};
     this.log('All LSP servers shut down.');
   }
-  
+
   async promptWorkspaceSetup(defaultPath) {
     const defaultName = defaultPath.split('/').pop() || defaultPath;
     const activeServers = this.activeServers[defaultPath]
@@ -365,7 +358,7 @@ class LSPClient {
       })
     ]);
   }
-  
+
   async init() {
     this.log('Initializing LSP Plugin...');
     await this.restoreAllOpenWorkspaces();
@@ -433,7 +426,7 @@ class LSPClient {
       }
     });
   }
-  
+
   openSettingsPage() {
     const backButton = tag('span', {
       className: 'icon arrow_back',

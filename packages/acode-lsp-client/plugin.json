@@ -2,11 +2,11 @@
   "id": "jobians.lsp.client",
   "name": "LSP Client",
   "main": "main.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "readme": "readme.md",
   "icon": "icon.png",
   "files": [],
-  "minVersionCode" : 290,
+  "minVersionCode": 290,
   "license": "MIT",
   "changelogs": "changelogs.md",
   "repository": "https://github.com/jobians/websocket-lsp-bridge",
@@ -16,5 +16,12 @@
     "name": "JOBIANSTECHIE",
     "email": "jobianstechie@gmail.com",
     "github": "jobians"
-  }
+  },
+  "contributors": [
+    {
+      "name": "UnschooledGamer",
+      "role": "Contributor",
+      "github": "UnschooledGamer"
+    }
+  ]
 }

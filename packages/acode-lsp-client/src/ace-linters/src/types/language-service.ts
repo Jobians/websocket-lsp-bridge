@@ -7,6 +7,8 @@ import {MarkDownConverter} from "./converters";
 import type {InlineAutocomplete} from "ace-code/src/ext/inline_autocomplete";
 import type {CommandBarTooltip} from "ace-code/src/ext/command_bar";
 import type {CompletionProvider} from "ace-code/src/autocomplete";
+import {Linter} from "eslint";
+import {Ruleset} from "htmlhint/dist/core/types";
 
 export interface LanguageService {
     documents: { [documentUri: string]: TextDocument };
@@ -145,7 +147,7 @@ export interface TsServiceOptions extends ServiceOptionsWithErrorCodes, ServiceO
 }
 
 export interface HtmlServiceOptions extends ServiceOptionsWithErrorMessages {
-    validationOptions?: { [option: string]: boolean },
+    validationOptions?: Ruleset,
     formatOptions?: {}
 }
 
@@ -165,19 +167,7 @@ export interface PhpServiceOptions extends ServiceOptionsWithErrorMessages {
 export interface LuaServiceOptions extends ServiceOptionsWithErrorMessages {
 }
 
-export interface JavascriptServiceOptions extends ServiceOptionsWithErrorMessages {
-    env?: { [name: string]: boolean } | undefined;
-    extends?: string | string[] | undefined;
-    globals?: { [name: string]: boolean | "off" | "readonly" | "readable" | "writable" | "writeable" } | undefined;
-    noInlineConfig?: boolean | undefined;
-    overrides?: Array<any> | undefined;
-    parser?: string | undefined;
-    parserOptions?: { [option: string]: any } | undefined;
-    plugins?: string[] | undefined;
-    processor?: string | undefined;
-    reportUnusedDisableDirectives?: boolean | undefined;
-    settings?: { [name: string]: any } | undefined;
-    rules?: { [rule: string]: any }
+export interface JavascriptServiceOptions extends ServiceOptionsWithErrorMessages, Linter.FlatConfig {
 }
 
 export interface PythonServiceOptions extends ServiceOptionsWithErrorCodes, ServiceOptionsWithErrorMessages {
@@ -189,7 +179,6 @@ export interface CssServiceOptions extends ServiceOptionsWithErrorMessages {
 
 export interface ServiceOptionsMap {
     json: JsonServiceOptions,
-    json5: JsonServiceOptions,
     typescript: TsServiceOptions,
     html: HtmlServiceOptions,
     yaml: YamlServiceOptions,
@@ -211,7 +200,6 @@ export interface ServiceOptionsMap {
 
 export type SupportedServices =
     "json"
-    | "json5"
     | "typescript"
     | "css"
     | "html"
@@ -252,7 +240,8 @@ export interface ProviderOptions {
         documentHighlights?: boolean,
         signatureHelp?: boolean,
         semanticTokens?: boolean,
-        codeActions?: boolean
+        codeActions?: boolean,
+        showUnusedDeclarations?: boolean
     },
     markdownConverter?: MarkDownConverter,
     workspacePath?: string, // this would be transformed to workspaceUri
@@ -311,6 +300,9 @@ export interface BaseConfig {
     initializationOptions?: ServiceOptions,
     options?: ServiceOptions,
     serviceInstance?: LanguageService,
+    /**
+     * language modes separated with |; * means all available languages
+     */
     modes: string,
     className?: string,
     features?: ServiceFeatures,

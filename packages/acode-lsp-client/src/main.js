@@ -1,122 +1,17 @@
-import plugin from '../plugin.json';
-const page = acode.require('page');
+/// <reference types="acode-plugin-types" />
+
+const lsp = acode.require('lsp');
 const alert = acode.require('alert');
-const urlModule = acode.require('Url');
 const settings = acode.require('settings');
 const openfolder = acode.require('openfolder');
-const actionStack = acode.require('actionStack');
 const multiPrompt = acode.require('multiPrompt');
+const commands = acode.require('commands') || editorManager.editor.commands;
 
+import plugin from '../plugin.json';
 import { LanguageClient } from './ace-linters/src/services/language-client';
 import { AceLanguageClient } from './ace-linters/src/ace-language-client';
-
-const DEFAULT_SERVER_OPTIONS = [
-  {
-    type: 'socket',
-    serviceName: 'ts-lsp',
-    modes: 'javascript | jsx | typescript | tsx',
-    label: 'TypeScript (JS, TS, JSX, TSX)',
-    socketUrl:
-      'ws://localhost:3030/ts-{workspace}?args=typescript-language-server,--stdio&type=stdio'
-  },
-  {
-    type: 'socket',
-    serviceName: 'deno-lsp',
-    modes: 'typescript | tsx',
-    label: 'Deno (JSX, TSX)',
-    socketUrl: 'ws://localhost:3030/deno-{workspace}?args=deno,lsp&type=stdio'
-  },
-  {
-    type: 'socket',
-    serviceName: 'pyright',
-    modes: 'python',
-    label: 'Python (Pyright)',
-    socketUrl: 'ws://localhost:3030/pyright-{workspace}?args=pyright-langserver,--stdio&type=stdio'
-  },
-  {
-    type: 'socket',
-    serviceName: 'php-lsp',
-    modes: 'php',
-    label: 'PHP (Intelephense)',
-    socketUrl: 'ws://localhost:3030/php-{workspace}?args=intelephense,--stdio&type=stdio'
-  },
-  {
-    type: 'socket',
-    serviceName: 'rust-lsp',
-    modes: 'rust',
-    label: 'Rust (rust-analyzer)',
-    socketUrl: 'ws://localhost:3030/rust-{workspace}?args=rust-analyzer&type=stdio'
-  }
-];
-
-function normalizePath(path, includeFilePrefix = false) {
-  let normalized = urlModule.pathname(path) || '';
-
-  // Reduce multiple leading slashes to a single slash
-  normalized = normalized.replace(/^\/+/, '/');
-
-  if (includeFilePrefix) {
-    normalized = `file://${normalized}`;
-  }
-
-  return normalized;
-}
-
-function createServerCard(server, index, onEdit, onDelete) {
-  const row = tag('div', {
-    className: 'server-card',
-    style: `
-      border:1px solid #888;
-      border-radius:6px;
-      padding:8px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-    `
-  });
-  const label = tag('div', {
-    textContent: `${server.label} (${server.serviceName})`,
-    style: 'flex:1;'
-  });
-  const btnGroup = tag('div', { style: 'display:flex; gap:6px;' });
-
-  const editBtn = tag('span', { className: 'icon edit', title: 'Edit' });
-  editBtn.onclick = () => onEdit(index);
-
-  const deleteBtn = tag('span', { className: 'icon delete_outline', title: 'Delete' });
-  deleteBtn.onclick = () => onDelete(index);
-
-  btnGroup.append(editBtn, deleteBtn);
-  row.append(label, btnGroup);
-  return row;
-}
-
-class WorkspaceStorage {
-  constructor(storageKey) {
-    this.storageKey = storageKey;
-  }
-
-  save(path, serverNames, metadata) {
-    const allWorkspaces = this.load();
-    allWorkspaces[path] = {
-      serverServiceNames: serverNames,
-      workspaceMetadata: metadata
-    };
-    localStorage.setItem(this.storageKey, JSON.stringify(allWorkspaces));
-  }
-
-  load() {
-    try {
-      return JSON.parse(localStorage.getItem(this.storageKey) || '{}');
-    } catch {
-      return {};
-    }
-  }
-
-  clear() {
-    localStorage.removeItem(this.storageKey);
-  }
-}
+import { normalizePath, DEFAULT_SERVER_OPTIONS } from './constants';
+import { WorkspaceStorage, openSettingsPage } from './ui';
 
 class LSPClient {
   debug = true;
@@ -137,8 +32,11 @@ class LSPClient {
 
     this.serverOptions = pluginSettings.serverOptions;
     this.workspaceStorage = new WorkspaceStorage(`${plugin.id}_workspaces`);
-
     this.log('Loaded', this.serverOptions.length, 'server options');
+  }
+  
+  isCodeMirror() {
+    return !!editorManager.isCodeMirror;
   }
 
   log(...args) {
@@ -161,19 +59,19 @@ class LSPClient {
   }
 
   checkServiceNameUnique(serviceName, excludeIndex = -1) {
-    if (
-      this.serverOptions.some((s, idx) => s.serviceName === serviceName && idx !== excludeIndex)
-    ) {
+    if (this.serverOptions.some((s, idx) => s.serviceName === serviceName && idx !== excludeIndex)) {
       this.showAlert(`Service Name "${serviceName}" already exists. Please choose a unique name.`);
       return false;
     }
     return true;
   }
-
+  
+  
   saveWorkspace(workspacePath, selectedServers, workspaceMetadata) {
     if (!Array.isArray(selectedServers)) selectedServers = [selectedServers];
-    const serviceNames = selectedServers.map((s) => (typeof s === 'string' ? s : s.serviceName));
-
+    const serviceNames = selectedServers.map((s) =>
+      typeof s === 'string' ? s : s.serviceName
+    );
     this.workspaceStorage.save(workspacePath, serviceNames, workspaceMetadata);
     this.log(`Workspace saved: ${workspacePath} (Servers: ${serviceNames.join(', ')})`);
   }
@@ -185,41 +83,6 @@ class LSPClient {
   clearAllWorkspaces() {
     this.workspaceStorage.clear();
     this.log('All workspaces cleared');
-  }
-
-  async restoreAllOpenWorkspaces() {
-    try {
-      const savedWorkspaces = this.loadAllWorkspaces();
-      this.log('Restoring saved workspaces:', savedWorkspaces);
-
-      if (!Object.keys(savedWorkspaces).length) return;
-      const openFolders = JSON.parse(localStorage.getItem('folders') || '[]');
-
-      for (const [workspacePath, { serverServiceNames, workspaceMetadata }] of Object.entries(
-        savedWorkspaces
-      )) {
-        const folderIsOpen = openFolders.some((f) =>
-          normalizePath(f.url, true).includes(workspacePath)
-        );
-        if (!folderIsOpen) continue;
-
-        for (const serverName of serverServiceNames) {
-          if (this.activeServers[workspacePath]?.[serverName]) continue;
-
-          const serverOption = this.serverOptions.find((s) => s.serviceName === serverName);
-          if (!serverOption) continue;
-
-          this.createLSPServer(workspacePath, serverOption, workspaceMetadata);
-        }
-
-        this.registerEditorIfReady();
-        this.showToast(`Workspace restored: ${workspacePath}`);
-      }
-
-      this.log('Finished restoring all workspaces.');
-    } catch (err) {
-      this.log('Error restoring workspaces:', err);
-    }
   }
 
   getActiveFolderPath() {
@@ -235,8 +98,97 @@ class LSPClient {
     if (!folder?.url) return fileUri;
     return fileUri.replace(folder.url, '').replace(/^\/+/, '');
   }
+  
 
+  createLSPServer(workspacePath, serverOption, workspaceMetadata) {
+    if (!workspacePath) return null;
+
+    const providedName = workspaceMetadata?.name || '';
+    let normalizedWorkspaceName = providedName
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9-_]/g, '')
+      .replace(/-+/g, '-')
+      .toLowerCase();
+
+    if (!normalizedWorkspaceName) normalizedWorkspaceName = 'workspace';
+
+    const socketUrl = serverOption.socketUrl.replace('{workspace}', normalizedWorkspaceName);
+    const languages = serverOption.modes
+      .split(/[\|,]/)
+      .map((m) => m.trim().toLowerCase())
+      .filter(Boolean);
+
+    this.log(`Starting LSP server "${serverOption.serviceName}" for workspace: ${workspacePath}`);
+    this.log(`Socket URL: ${socketUrl}`);
+
+    let lspClient = null;
+
+    if (this.isCodeMirror()) {
+      const serverDef = lsp.defineServer({
+        id: serverOption.serviceName,
+        label: serverOption.label,
+        languages,
+        transport: { kind: 'websocket', url: socketUrl },
+        rootUri: () => workspacePath,
+        documentUri: (uri) => normalizePath(uri, true),
+        useWorkspaceFolders: false,
+        enabled: true,
+      });
+      lsp.upsert(serverDef);
+      lspClient = serverDef;
+      
+      // Temporary: not sure why Acode doesn't refresh LSP automatically.
+      window.editorManager?.restartLsp?.();
+    } else {
+      const socket = new WebSocket(socketUrl);
+      socket.onclose = (event) => {
+        this.log(serverOption.serviceName, event);
+        if (!event.wasClean) {
+          this.showToast(`LSP server "${serverOption.serviceName}" closed unexpectedly.`);
+        }
+      };
+
+      lspClient = AceLanguageClient.for(
+        { ...serverOption, rootUri: workspacePath, socket, module: () => ({ LanguageClient }) },
+        { workspacePath, manualSessionControl: true, functionality: { signatureHelp: false } }
+      );
+    }
+
+    if (!lspClient) return null;
+
+    if (!this.activeServers[workspacePath]) this.activeServers[workspacePath] = {};
+    this.activeServers[workspacePath][serverOption.serviceName] = lspClient;
+
+    this.log(`Server registered for workspace: ${workspacePath} (${serverOption.serviceName})`);
+    return lspClient;
+  }
+
+  destroy() {
+    Object.entries(this.activeServers).forEach(([workspace, clients]) => {
+      Object.entries(clients).forEach(([serviceId, client]) => {
+        try {
+          if (this.isCodeMirror()) {
+            lsp.servers.unregister(serviceId);
+          } else {
+            client.closeConnection();
+          }
+          this.log(`Closed "${serviceId}" for workspace: ${workspace}`);
+        } catch (err) {
+          this.log(`Failed to close "${serviceId}":`, err);
+        }
+      });
+    });
+
+    this.activeServers = {};
+    this.clearAllWorkspaces();
+    this.log('All LSP servers shut down.');
+  }
+  
+  
   registerEditorIfReady() {
+    if (this.isCodeMirror()) return;
+
     const workspacePath = this.getActiveFolderPath();
     const clients = this.activeServers[workspacePath];
     if (!clients) {
@@ -247,328 +199,172 @@ class LSPClient {
     Object.entries(clients).forEach(([name, lspClient]) => {
       lspClient.registerEditor(editorManager.editor, {
         filePath: this.getCurrentFilePath(),
-        joinWorkspaceURI: true
+        joinWorkspaceURI: true,
       });
       this.log(`Editor registered for client: ${name}`);
     });
 
     this.log(`Editor attached to workspace: ${workspacePath}`);
   }
+  
 
-  createLSPServer(workspacePath, serverOption, workspaceMetadata) {
-    if (!workspacePath) return null;
+  async restoreAllOpenWorkspaces() {
+    try {
+      const savedWorkspaces = this.loadAllWorkspaces();
+      this.log('[restore] Loaded workspaces:', savedWorkspaces);
 
-    const providedName = workspaceMetadata?.name || '';
-    let normalizedWorkspaceName = providedName
-      .trim()
-      .replace(/\s+/g, '-') // convert spaces to dashes
-      .replace(/[^a-zA-Z0-9-_]/g, '') // remove invalid characters
-      .replace(/-+/g, '-') // collapse multiple consecutive dashes
-      .toLowerCase();
-
-    // Fallback if normalization produces an empty string
-    if (!normalizedWorkspaceName) normalizedWorkspaceName = 'workspace';
-
-    const socketUrl = serverOption.socketUrl.replace('{workspace}', normalizedWorkspaceName);
-    this.log(`Starting LSP server "${serverOption.serviceName}" for workspace: ${workspacePath}`);
-    this.log(`Socket URL: ${socketUrl}`);
-
-    const socket = new WebSocket(socketUrl);
-    socket.onclose = (event) => {
-      this.log(serverOption.serviceName, event);
-      if (!event.wasClean) {
-        this.showToast(`LSP server "${serverOption.serviceName}" closed unexpectedly.`);
+      const workspaceCount = Object.keys(savedWorkspaces || {}).length;
+      if (!workspaceCount) {
+        this.log('[restore] No saved workspaces found. Exiting.');
+        return;
       }
-    };
 
-    const serverConfig = {
-      ...serverOption,
-      rootUri: workspacePath,
-      socket,
-      module: () => ({ LanguageClient })
-    };
+      const openFolders = window.addedFolder || [];
+      this.log('[restore] Open folders:', openFolders);
 
-    const lspClient = AceLanguageClient.for(serverConfig, {
-      workspacePath,
-      manualSessionControl: true,
-      functionality: { signatureHelp: false }
-    });
+      for (const [workspacePath, { serverServiceNames, workspaceMetadata }] of Object.entries(savedWorkspaces)) {
+        this.log(`[restore] Processing workspace: ${workspacePath}`);
 
-    // Register multiple servers per workspace
-    if (!this.activeServers[workspacePath]) this.activeServers[workspacePath] = {};
-    this.activeServers[workspacePath][serverOption.serviceName] = lspClient;
+        const folderIsOpen = openFolders.some((f) =>
+          normalizePath(f.url, true).includes(workspacePath)
+        );
 
-    this.log(`Server registered for workspace: ${workspacePath} (${serverOption.serviceName})`);
-    return lspClient;
-  }
-
-  destroy() {
-    this.clearAllWorkspaces();
-
-    if (settings.value[plugin.id]) {
-      delete settings.value[plugin.id];
-      settings.update();
-    }
-
-    this.log('Destroying all active LSP servers...');
-    Object.entries(this.activeServers).forEach(([workspace, clients]) => {
-      Object.values(clients).forEach((client) => {
-        try {
-          client.closeConnection();
-          this.log(`Closed LSP client for workspace: ${workspace}`);
-        } catch (error) {
-          this.log(`Failed to close LSP client for workspace: ${workspace} — ${error}`);
+        if (!folderIsOpen) {
+          this.log(`[restore] Skipping (folder not open): ${workspacePath}`);
+          continue;
         }
-      });
-    });
 
-    this.activeServers = {};
-    this.log('All LSP servers shut down.');
+        for (const serverName of serverServiceNames || []) {
+          if (this.activeServers[workspacePath]?.[serverName]) {
+            this.log(`[restore] Already active, skipping: ${serverName}`);
+            continue;
+          }
+
+          const serverOption = this.serverOptions.find((s) => s.serviceName === serverName);
+          if (!serverOption) {
+            this.log(`[restore] Missing server option: ${serverName}`);
+            continue;
+          }
+
+          try {
+            this.createLSPServer(workspacePath, serverOption, workspaceMetadata);
+            this.log(`[restore] Successfully created server: ${serverName}`);
+          } catch (err) {
+            this.log(`[restore] Error creating server ${serverName}:`, err);
+          }
+        }
+
+        this.registerEditorIfReady();
+        this.showToast(`Workspace restored: ${workspacePath}`);
+        this.log(`[restore] Workspace restored: ${workspacePath}`);
+      }
+    } catch (err) {
+      this.log('[restore] Fatal error restoring workspaces:', err);
+    }
   }
+  
 
-  async promptWorkspaceSetup(defaultPath) {
-    const defaultName = defaultPath.split('/').pop() || defaultPath;
-    const activeServers = this.activeServers[defaultPath]
-      ? Object.keys(this.activeServers[defaultPath])
+  runLSPInit = async () => {
+    this.log('LSP Init command triggered');
+    const workspacePath = this.getActiveFolderPath();
+    if (!workspacePath) return this.showAlert('Open a folder first.');
+
+    const activeServers = this.activeServers[workspacePath]
+      ? Object.keys(this.activeServers[workspacePath])
       : [];
 
-    return multiPrompt('Workspace Info', [
-      {
-        type: 'text',
-        id: 'name',
-        value: defaultName,
-        placeholder: 'Workspace name',
-        required: true
-      },
-      {
-        type: 'text',
-        id: 'path',
-        value: defaultPath,
-        placeholder: 'Workspace path',
-        required: true
-      },
-      ...this.serverOptions.map((s) => {
-        const isActive = activeServers.includes(s.serviceName);
-        return {
-          type: 'checkbox',
-          id: s.serviceName,
-          placeholder: s.label,
-          value: isActive,
-          isActive
-        };
+    const defaultName = workspacePath.split('/').pop() || workspacePath;
+    const workspaceInput = await multiPrompt('Workspace Info', [
+      { type: 'text', id: 'name', value: defaultName, placeholder: 'Workspace name', required: true },
+      { type: 'text', id: 'path', value: workspacePath, placeholder: 'Workspace path', required: true },
+      ...this.serverOptions.map((s) => ({
+        type: 'checkbox',
+        id: s.serviceName,
+        placeholder: s.label,
+        value: activeServers.includes(s.serviceName),
+        isActive: activeServers.includes(s.serviceName),
+      })),
+    ]).catch(() => null);
+
+    if (!workspaceInput) return this.log('Workspace setup was cancelled.');
+
+    const selectedServers = this.serverOptions.filter((s) => workspaceInput[s.serviceName]);
+    if (!selectedServers.length) return this.showAlert('Please select at least one language server.');
+
+    // Check for mode conflicts
+    const usedModes = new Set();
+    for (const server of selectedServers) {
+      const modes = server.modes.split(/[\|,]/).map((m) => m.trim().toLowerCase()).filter(Boolean);
+      for (const mode of modes) {
+        if (usedModes.has(mode)) {
+          return this.showAlert(
+            `Conflict detected: Multiple LSPs selected for mode "${mode}". Please select only one server per mode.`
+          );
+        }
+        usedModes.add(mode);
+      }
+    }
+
+    const initializedServers = selectedServers
+      .map((server) => {
+        const client = this.createLSPServer(workspacePath, server, workspaceInput);
+        this.log(`Initializing server "${server.serviceName}":`, client ? 'Success' : 'Failed');
+        return client ? server : null;
       })
-    ]);
-  }
+      .filter(Boolean);
+
+    if (!initializedServers.length) {
+      return this.showAlert('No LSP servers could be started for this workspace.');
+    }
+
+    this.saveWorkspace(workspacePath, initializedServers.map((s) => s.serviceName), workspaceInput);
+    this.registerEditorIfReady();
+    this.showToast(`${initializedServers.map((s) => s.label).join(', ')} initialized for ${workspacePath}`);
+  };
 
   async init() {
     this.log('Initializing LSP Plugin...');
+
+    commands.addCommand({
+      name: 'LSP Settings',
+      exec: () => openSettingsPage(this),
+    });
+
+    if (!this.isCodeMirror()) {
+      commands.addCommand({
+        name: 'LSP Client Init',
+        bindKey: { win: 'Ctrl-L', mac: 'Cmd-L' },
+        exec: () => this.runLSPInit(),
+      });
+    }
+
+    commands.addCommand({
+      name: 'LSP Client Init',
+      bindKey: { win: 'Ctrl-Shift-L', mac: 'Cmd-Shift-L' },
+      exec: () => this.runLSPInit(),
+    });
+
     await this.restoreAllOpenWorkspaces();
 
-    editorManager.editor.on('changeSession', () => this.registerEditorIfReady());
-
-    editorManager.editor.commands.addCommand({
-      name: 'LSP Settings',
-      exec: async () => this.openSettingsPage()
-    });
-
-    editorManager.editor.commands.addCommand({
-      name: 'LSP Init',
-      bindKey: { win: 'Ctrl-L', mac: 'Cmd-L' },
-      exec: async () => {
-        this.log('LSP Init command triggered');
-        const workspacePath = this.getActiveFolderPath();
-        if (!workspacePath) return this.showAlert('Open a folder first.');
-
-        const workspaceInput = await this.promptWorkspaceSetup(workspacePath).catch(() => null);
-        if (!workspaceInput) return this.log('Workspace setup was cancelled.');
-        this.log('Workspace input from multiPrompt:', workspaceInput);
-
-        // Collect all selected servers
-        const selectedServers = this.serverOptions.filter((s) => workspaceInput[s.serviceName]);
-        if (!selectedServers.length)
-          return this.showAlert('Please select at least one language server.');
-
-        // Check for mode conflicts
-        const usedModes = new Set();
-        for (const server of selectedServers) {
-          const modes = server.modes
-            .split(/[\|,]/)
-            .map((m) => m.trim().toLowerCase())
-            .filter(Boolean);
-          for (const mode of modes) {
-            if (usedModes.has(mode)) {
-              return this.showAlert(
-                `Conflict detected: Multiple LSPs selected for mode "${mode}". Please select only one server per mode.`
-              );
-            }
-            usedModes.add(mode);
-          }
-        }
-
-        const initializedServers = selectedServers
-          .map((server) => {
-            const client = this.createLSPServer(workspacePath, server, workspaceInput);
-            this.log(`Initializing server "${server.serviceName}":`, client ? 'Success' : 'Failed');
-            return client ? server : null;
-          })
-          .filter(Boolean);
-
-        if (!initializedServers.length) {
-          return this.showAlert('No LSP servers could be started for this workspace.');
-        }
-
-        const selectedServiceNames = initializedServers.map((s) => s.serviceName);
-        this.saveWorkspace(workspacePath, selectedServiceNames, workspaceInput);
-
-        this.registerEditorIfReady();
-        this.showToast(
-          `${initializedServers.map((s) => s.label).join(', ')} initialized for ${workspacePath}`
-        );
-      }
-    });
-  }
-
-  openSettingsPage() {
-    const backButton = tag('span', {
-      className: 'icon arrow_back',
-      dataset: { action: 'back-btn' },
-      onclick: () => settingsPage.hide()
-    });
-    const addButton = tag('span', { className: 'icon add_circle', dataset: { action: 'add-btn' } });
-    const settingsPage = page('LSP Settings', { lead: backButton, tail: addButton });
-
-    const settingsForm = tag('div', {
-      style:
-        'padding:8px; display:flex; flex-direction:column; gap:12px; max-height:80vh; overflow:auto;'
-    });
-
-    const getServerPromptFields = (server = {}) => [
-      {
-        type: 'text',
-        id: 'label',
-        placeholder: 'Label',
-        value: server.label || '',
-        required: true
-      },
-      {
-        type: 'text',
-        id: 'serviceName',
-        placeholder: 'Service Name',
-        value: server.serviceName || '',
-        required: true
-      },
-      {
-        type: 'text',
-        id: 'modes',
-        placeholder: 'Modes (pipe separated)',
-        value: server.modes || ''
-      },
-      {
-        type: 'text',
-        id: 'socketUrl',
-        placeholder: 'Socket URL',
-        value: server.socketUrl || '',
-        required: true
-      }
-    ];
-
-    const renderServers = () => {
-      settingsForm.innerHTML = '';
-      // Server options heading
-      settingsForm.append(tag('h3', { textContent: 'Server Options', style: 'margin:0 0 8px 0;' }));
-
-      // Server cards
-      this.serverOptions.forEach((s, index) => {
-        const card = createServerCard(
-          s,
-          index,
-          async (i) => {
-            const result = await multiPrompt(
-              'Edit Server',
-              getServerPromptFields(this.serverOptions[i])
-            ).catch(() => null);
-            if (!result) return;
-
-            if (!this.checkServiceNameUnique(result.serviceName, i)) return;
-
-            this.serverOptions[i] = { ...this.serverOptions[i], ...result, type: 'socket' };
-            this.saveServerOptions();
-            renderServers();
-            this.showToast('Server updated');
-          },
-          (i) => {
-            this.serverOptions.splice(i, 1);
-            this.saveServerOptions();
-            renderServers();
-            this.showToast('Server deleted');
-          }
-        );
-        settingsForm.append(card);
-      });
-
-      // Saved Workspaces
-      settingsForm.append(
-        tag('h3', { textContent: 'Saved Workspaces', style: 'margin-top:16px;margin-bottom:8px;' })
-      );
-      Object.entries(this.loadAllWorkspaces()).forEach(([path, data]) => {
-        if (!data) return;
-        const servers = Array.isArray(data.serverServiceNames)
-          ? data.serverServiceNames.join(', ')
-          : data.serverServiceNames;
-
-        const row = tag('div', {
-          style:
-            'border:1px dashed #aaa; border-radius:4px; padding:6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'
-        });
-
-        const text = tag('span', { textContent: `${path} (${servers})` });
-        const deleteBtn = tag('span', { className: 'icon delete_outline', title: 'Delete' });
-        deleteBtn.onclick = () => {
-          const all = this.loadAllWorkspaces();
-          delete all[path];
-          localStorage.setItem(this.workspaceStorage.storageKey, JSON.stringify(all));
-          row.remove();
-          this.showToast(`Workspace deleted: ${path}`);
-          this.log('Workspace deleted from settings:', path);
-        };
-
-        row.append(text, deleteBtn);
-        settingsForm.append(row);
-      });
-    };
-
-    renderServers();
-
-    addButton.onclick = async () => {
-      const result = await multiPrompt('Add Server', getServerPromptFields()).catch(() => null);
-      if (!result) return;
-
-      if (!this.checkServiceNameUnique(result.serviceName)) return;
-
-      this.serverOptions.push({ ...result, type: 'socket' });
-      this.saveServerOptions();
-      renderServers();
-      this.showToast('Server added');
-    };
-
-    settingsPage.appendBody(settingsForm);
-    settingsPage.show = () => {
-      actionStack.push({ id: plugin.id, action: settingsPage.hide });
-      app.append(settingsPage);
-    };
-    settingsPage.show();
+    if (!this.isCodeMirror()) {
+      editorManager.editor.on('changeSession', () => this.registerEditorIfReady());
+    }
   }
 }
 
 if (window.acode) {
   const languageServerClient = new LSPClient();
 
-  acode.setPluginInit(plugin.id, async () => await languageServerClient.init(), {
-    list: [{ key: 'openSettings', text: 'Open LSP Settings' }],
-    cb: async (actionKey) => {
-      if (actionKey === 'openSettings') languageServerClient.openSettingsPage();
+  acode.setPluginInit(
+    plugin.id,
+    async () => await languageServerClient.init(),
+    {
+      list: [{ key: 'openSettings', text: 'Open LSP Settings' }],
+      cb: async (actionKey) => {
+        if (actionKey === 'openSettings') openSettingsPage(languageServerClient);
+      },
     }
-  });
+  );
 
   acode.setPluginUnmount(plugin.id, () => languageServerClient.destroy());
 }

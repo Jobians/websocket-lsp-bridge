@@ -13,7 +13,8 @@
     "esModuleInterop": true,
     "declaration": true,
     "declarationDir": "./types",
-    "noEmit": true
+    "noEmit": true,
+    "types": ["mocha", "node"]
   },
   "ts-node": {
     "transpileOnly": true
@@ -22,6 +23,7 @@
     "node_modules"
   ],
   "include": [
-    "./src/**/*.ts"
+    "./src/**/*.ts",
+    "./tests/**/*.ts"
   ]
 }

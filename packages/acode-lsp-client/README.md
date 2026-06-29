@@ -1,130 +1,114 @@
-# Acode LSP Client (Experimental)
-
-> ⚠️ **Experimental Project**
-> This is a personal project I built and tested mainly on **Termux** using **Deno** and **TypeScript** LSPs.
-> It’s not fully tested or production-ready — I’m just sharing it in case others want to explore, improve, or reuse it.
-> The source code is open and free to modify.
-
----
+# Acode LSP Client
 
 ## 🧠 Overview
 
-This plugin adds **Language Server Protocol (LSP)** support to [Acode](https://acode.app/) using a **WebSocket bridge**.
-It can manage multiple LSP servers per workspace, remember setups, and restore them automatically when reopening the app.
-
-It’s designed to work with [`websocket-lsp-bridge`](https://github.com/jobians/websocket-lsp-bridge), but it can connect to **any compatible WebSocket-based LSP proxy**.
-
-Additionally, it uses [`ace-linters`](https://github.com/mkslanc/ace-linters) — an awesome open-source project that brings LSP-powered diagnostics and code linting to the Ace editor.
-Huge thanks and appreciation to the author **@mkslanc** for making this possible! 🙌
-
-Although it should work with **any LSP**, it has been **fully tested only with**:
-
-* `typescript-language-server`
-* `Deno` (inside **Termux**)
+This plugin adds **Language Server Protocol (LSP)** support to Acode via a **WebSocket bridge**, enabling diagnostics, linting, and editor features like completion and hover. It supports multiple language servers per workspace, persists configurations, and automatically restores them on startup.
 
 ---
 
 ## 🚀 Features
 
 * Multiple LSP servers per workspace
-* Persistent workspace configuration
-* Auto-restores open workspaces on startup
-* UI for adding, editing, or removing server definitions
-* Auto-detects active servers when setting up
-* Default configurations for TypeScript, Deno, Python, PHP, and Rust
+* Persistent workspace configuration with automatic restoration on startup
+* UI for adding, editing, and removing server definitions
+* Auto-detection of active servers during setup
+* Default configurations for popular languages (TypeScript, Deno, Python, PHP, Rust, and more)
+* Support for both **Ace** and **CodeMirror** editors
 
 ---
 
 ## 🧩 Requirements
 
-* [Acode](https://acode.app/) editor
-* A **WebSocket → LSP bridge** (for example: [`websocket-lsp-bridge`](https://github.com/jobians/websocket-lsp-bridge))
-* The **language servers themselves** must be installed separately — for example in Termux:
+* A **WebSocket → LSP bridge** (e.g. [websocket-lsp-bridge](https://www.npmjs.com/package/ws-lsp-bridge))
+* Installed language servers for the languages you want to use
 
-  ```bash
-  # TypeScript / JavaScript
-  npm i -g typescript typescript-language-server
+```bash
+# Examples below use Termux (Android)
 
-  # Deno
-  pkg install deno
+# TypeScript / JavaScript
+npm i -g typescript typescript-language-server
 
-  # Python
-  pip install pyright
+# Deno
+pkg install deno
 
-  # PHP
-  npm i -g intelephense
+# Python
+pip install pyright
 
-  # Rust
-  pkg install rust-analyzer
+# PHP
+npm i -g intelephense
 
-  # And so on ...
-  ```
+# Rust
+pkg install rust-analyzer
+
+# And so on ...
+```
 
 ---
 
 ## ⚙️ Setup
 
-Install websocket-lsp-bridge globally:
+### 1. Start the WebSocket Bridge
+
+The plugin requires a running WebSocket → LSP bridge. Install it once:
 
 ```bash
 npm install -g ws-lsp-bridge
 ```
 
-1. **Start your LSP bridge**, e.g. with `ws-lsp-bridge`:
+Then start it before using the plugin:
 
-   ```bash
-   wslsp
-   ```
-2. **Install and enable** this plugin in Acode.
-3. **Open a folder** in Acode.
-4. Press **Ctrl + L** to open the **LSP setup prompt**.
-5. Select one or more language servers.
-6. Start coding — completion, hover info, and diagnostics should work automatically.
+```bash
+wslsp
+```
+
+> See [websocket-lsp-bridge](https://github.com/Jobians/websocket-lsp-bridge/tree/main/packages/ws-lsp-bridge) for alternative installation methods and configuration options.
+
+### 2. Configure the Plugin
+
+1. Install and enable the plugin in Acode
+2. Open a folder in Acode
+3. Press **Ctrl + L** or **Ctrl + Shift + L** to open the LSP setup prompt
+4. Select one or more language servers
+5. Start coding — completion, hover, and diagnostics activate automatically
+
+## 🎬 Tutorial
+
+<video src="https://raw.githubusercontent.com/Jobians/websocket-lsp-bridge/refs/heads/main/packages/acode-lsp-client/tutorial.mp4" controls width="100%"></video>
 
 ---
 
 ## 🔧 Configuration
 
-You can manage LSP servers via **LSP Settings → Add Server**.
+Manage servers via **LSP Settings**:
 
-* Press **Ctrl + Shift + P** to open the command palette, then search for **LSP Settings**.
-* Or go to the plugin page and click the settings icon.
-* You can **add**, **modify**, or **remove** servers.
-* You can also **delete saved workspaces** there.
+* Open command palette (**Ctrl + Shift + P**) → search **LSP Settings**
+* Or access it from the plugin page
 
----
-
-## 🧠 How It Works
-
-* The plugin connects to each LSP server through a WebSocket bridge.
-* Workspaces are stored in Acode’s local storage and restored automatically.
-* Each open file is registered with the corresponding LSP client depending on its mode (language).
-* Diagnostics and linting are powered by [`ace-linters`](https://github.com/mkslanc/ace-linters).
+You can add new servers, edit existing configurations, remove servers, and delete saved workspaces.
 
 ---
 
 ## 💡 Contributing
 
-Pull requests, forks, and suggestions are welcome!
-If you add support for more languages, improve connection handling, or fix bugs, feel free to share your work.
+Contributions are welcome. Feel free to improve language support, optimize performance, or enhance connection handling.
 
 ---
 
 ## 💖 Donate
 
-If you like this plugin and want to support development, you can donate using crypto:  
+If you’d like to support development:
 
-[Donate here](https://cwallet.com/t/TE6A6KMV)
+👉 [https://cwallet.com/t/TE6A6KMV](https://cwallet.com/t/TE6A6KMV)
 
 ---
 
 ## 🌐 Links
 
-- [GitHub Repository](https://github.com/jobians/websocket-lsp-bridge)
-- [Report an Issue](https://github.com/jobians/websocket-lsp-bridge/issues)
+* [https://github.com/jobians/websocket-lsp-bridge](https://github.com/jobians/websocket-lsp-bridge)
+* [https://github.com/jobians/websocket-lsp-bridge/issues](https://github.com/jobians/websocket-lsp-bridge/issues)
 
 ---
 
 ## 📜 License
 
-MIT License © 2025 [JOBIANSTECHIE](https://github.com/jobians)
+MIT License © 2025-2026 JOBIANSTECHIE

@@ -45,7 +45,7 @@ let buildConfig = {
     const ctx = await esbuild.context(buildConfig);
 
     await ctx.watch();
-    const { host, port } = await ctx.serve({
+    await ctx.serve({
       servedir: '.',
       port: 3000
     });

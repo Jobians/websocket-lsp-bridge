@@ -18,28 +18,6 @@ It allows **web-based editors** or **remote clients** to connect to any LSP serv
 
 ## 📦 Installation on Termux
 
-One-liner that detects your architecture and installs the latest release:
-
-```bash
-arch=$(uname -m)
-case "$arch" in
-  aarch64) tarball="wslsp-latest-aarch64.tar.gz" ;;
-  armv7l|arm)  tarball="wslsp-latest-armv7.tar.gz" ;;
-  *) echo "Unsupported architecture: $arch"; exit 1 ;;
-esac
-
-latest=$(curl -fsSL https://api.github.com/repos/jobians/websocket-lsp-bridge/releases/latest \
-  | grep '"tag_name"' | cut -d'"' -f4)
-
-curl -fsSL "https://github.com/jobians/websocket-lsp-bridge/releases/download/${latest}/wslsp-${latest}-${arch%l}.tar.gz" \
-  | tar -xz -C "$PREFIX/bin"
-
-chmod +x "$PREFIX/bin/wslsp"
-echo "✅ wslsp $latest installed"
-```
-
-Or as a compact one-liner (paste into Termux):
-
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/jobians/websocket-lsp-bridge/main/install.sh)
 ```

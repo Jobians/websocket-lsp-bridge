@@ -19,7 +19,7 @@ This plugin adds **Language Server Protocol (LSP)** support to Acode via a **Web
 
 ## 🧩 Requirements
 
-* A **WebSocket → LSP bridge** (e.g. [websocket-lsp-bridge](https://www.npmjs.com/package/ws-lsp-bridge))
+* A **WebSocket → LSP bridge** (e.g. [websocket-lsp-bridge](https://github.com/jobians/websocket-lsp-bridge/tree/main/packages/ws-lsp-bridge))
 * Installed language servers for the languages you want to use
 
 ```bash
@@ -49,19 +49,22 @@ pkg install rust-analyzer
 
 ### 1. Start the WebSocket Bridge
 
-The plugin requires a running WebSocket → LSP bridge. Pick one install method:
-
-**Option A — pre-built binary (Termux, no Node required):**
+Install the bridge in Termux:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/jobians/websocket-lsp-bridge/main/install.sh)
 ```
 
-**Option B — npm (requires Node.js):**
+<details>
+<summary>Deprecated npm version</summary>
+
+The npm version of `ws-lsp-bridge` is deprecated:
 
 ```bash
 npm install -g ws-lsp-bridge
 ```
+
+</details>
 
 Then start the bridge before using the plugin:
 

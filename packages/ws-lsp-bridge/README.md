@@ -11,11 +11,11 @@ It allows **web-based editors** or **remote clients** to connect to any LSP serv
 - 🌐 **Bridge** messages between web editors and LSP servers in real time  
 - 🧠 **Multi-endpoint** support (each LSP runs on its own WebSocket path)  
 - ⚡ **Lightweight** — single static binary, no Node.js or npm required  
-- 📱 Built for **Android / Termux** (aarch64, armv7, x86_64) and **Linux musl** (aarch64, armv7)
+- 📱 Built for **Android / Termux** (aarch64, armv7, x86_64) and **Linux musl** (aarch64, armv7, x86_64)
 
 ---
 
-## 📦 Installation on Termux
+## 📦 Installation (Termux & Linux)
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/jobians/websocket-lsp-bridge/main/install.sh)

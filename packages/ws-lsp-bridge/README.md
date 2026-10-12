@@ -10,23 +10,38 @@ It allows **web-based editors** or **remote clients** to connect to any LSP serv
 - 🔌 **Spawn any LSP server** (`stdio` or `ipc`) and expose it via WebSocket  
 - 🌐 **Bridge** messages between web editors and LSP servers in real time  
 - 🧠 **Multi-endpoint** support (each LSP runs on its own WebSocket path)  
-- ⚡ **Lightweight & dependency-free** — only uses `ws` and `vscode-jsonrpc`  
+- ⚡ **Lightweight** — single static binary, no Node.js or npm required  
 - 🪶 Ideal for browser-based editors, cloud IDEs, or mobile code editors  
+- 📱 Built for **Termux on Android** (aarch64 and armv7)
 
 ---
 
-## 📦 Installation
+## 📦 Installation on Termux
 
-Install globally via npm:
-
-```bash
-npm install -g ws-lsp-bridge
-````
-
-Or run directly with `npx`:
+One-liner that detects your architecture and installs the latest release:
 
 ```bash
-npx ws-lsp-bridge
+arch=$(uname -m)
+case "$arch" in
+  aarch64) tarball="wslsp-latest-aarch64.tar.gz" ;;
+  armv7l|arm)  tarball="wslsp-latest-armv7.tar.gz" ;;
+  *) echo "Unsupported architecture: $arch"; exit 1 ;;
+esac
+
+latest=$(curl -fsSL https://api.github.com/repos/jobians/websocket-lsp-bridge/releases/latest \
+  | grep '"tag_name"' | cut -d'"' -f4)
+
+curl -fsSL "https://github.com/jobians/websocket-lsp-bridge/releases/download/${latest}/wslsp-${latest}-${arch%l}.tar.gz" \
+  | tar -xz -C "$PREFIX/bin"
+
+chmod +x "$PREFIX/bin/wslsp"
+echo "✅ wslsp $latest installed"
+```
+
+Or as a compact one-liner (paste into Termux):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/jobians/websocket-lsp-bridge/main/install.sh)
 ```
 
 ---
@@ -43,29 +58,42 @@ By default, the server listens on **port 3030**.
 
 Then connect your editor to a WebSocket endpoint, specifying which LSP server to launch via query parameters.
 
-Example (TypeScript LSP):
+**TypeScript LSP (stdio):**
 
 ```
 ws://localhost:3030/typescript?args=typescript-language-server,--stdio&type=stdio
 ```
 
-This command launches `typescript-language-server --stdio` and bridges its LSP messages over WebSocket.
+**Pyright (stdio):**
+
+```
+ws://localhost:3030/python?args=pyright-langserver,--stdio&root=/data/data/com.termux/files/home/myproject
+```
+
+**Node IPC mode** (requires `node` + `vscode-jsonrpc` on PATH):
+
+```
+ws://localhost:3030/tsserver?args=tsserver&type=ipc
+```
 
 ---
 
 ## ⚙️ CLI Options
 
-```bash
-wslsp [options]
+```
+wslsp [OPTIONS]
 
 Options:
-  --port, -p <number>   Port for WebSocket server (default: 3030)
-  --help, -h            Show this help
+  -p, --port <PORT>   Port for the WebSocket server [env: PORT] [default: 3030]
+  -h, --help          Print help
+  -V, --version       Print version
 ```
 
 You can also set the port via environment variable:
 
 ```bash
+PORT=4040 wslsp
+# or
 wslsp --port 4040
 ```
 
@@ -74,23 +102,53 @@ wslsp --port 4040
 ## 🧠 How It Works
 
 1. The bridge starts a **WebSocket server** on the specified port.
-2. Each connection URL defines which **LSP server** to spawn via query parameters.
+2. Each connection URL defines which **LSP server** to spawn via query parameters:
+   - `args` — command and arguments, comma- or space-separated (e.g. `typescript-language-server,--stdio`)
+   - `type` — `stdio` (default) or `ipc`
+   - `root` — working directory for the LSP process (default: cwd)
 3. The bridge then **pipes LSP JSON-RPC messages** between:
+   - **Editor/WebSocket client → LSP stdin** (wrapped in `Content-Length` headers)
+   - **LSP stdout → Editor/WebSocket client** (unwrapped from `Content-Length` headers)
 
-   * **Editor/WebSocket client → LSP stdin**
-   * **LSP stdout → Editor/WebSocket client**
-
-```text
-Editor ----(WebSocket JSON-RPC)----> ws-lsp-bridge ----(stdio)----> LSP Server
+```
+Editor ──(WebSocket JSON-RPC)──► wslsp ──(stdio)──► LSP Server
+       ◄──────────────────────────────  ◄───────────
 ```
 
-This enables web-based or remote editors to use any LSP server — even if they can’t use `stdio` or `ipc` directly.
+### IPC Mode
+
+When `type=ipc`, `wslsp` spawns a small embedded Node.js relay script that bridges the Node IPC channel to LSP stdio framing. This requires `node` and `vscode-jsonrpc` to be installed. If Node is not found, the socket is closed with a clear error.
+
+---
+
+## 🏗️ Building from Source
+
+```bash
+# Install Rust (if not already installed)
+curl https://sh.rustup.rs -sSf | sh
+
+cd packages/ws-lsp-bridge
+cargo build --release
+
+# Binary is at:
+./target/release/wslsp
+```
+
+### Cross-compiling for Android (from Linux)
+
+```bash
+cargo install cargo-ndk
+rustup target add aarch64-linux-android armv7-linux-androideabi
+
+# Build for aarch64 (most modern Android phones)
+cargo ndk --target aarch64-linux-android --platform 21 -- build --release
+```
 
 ---
 
 ## 💖 Donate
 
-If you like this plugin and want to support development, you can donate using crypto:  
+If you like this project and want to support development, you can donate using crypto:  
 
 [Donate here](https://cwallet.com/t/TE6A6KMV)
 

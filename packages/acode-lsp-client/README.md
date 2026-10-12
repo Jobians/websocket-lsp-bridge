@@ -49,19 +49,27 @@ pkg install rust-analyzer
 
 ### 1. Start the WebSocket Bridge
 
-The plugin requires a running WebSocket → LSP bridge. Install it once:
+The plugin requires a running WebSocket → LSP bridge. Pick one install method:
+
+**Option A — pre-built binary (Termux, no Node required):**
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/jobians/websocket-lsp-bridge/main/install.sh)
+```
+
+**Option B — npm (requires Node.js):**
 
 ```bash
 npm install -g ws-lsp-bridge
 ```
 
-Then start it before using the plugin:
+Then start the bridge before using the plugin:
 
 ```bash
 wslsp
 ```
 
-> See [websocket-lsp-bridge](https://github.com/Jobians/websocket-lsp-bridge/tree/main/packages/ws-lsp-bridge) for alternative installation methods and configuration options.
+> See [websocket-lsp-bridge](https://github.com/Jobians/websocket-lsp-bridge/tree/main/packages/ws-lsp-bridge) for configuration options.
 
 ### 2. Configure the Plugin
 

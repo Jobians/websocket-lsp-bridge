@@ -71,15 +71,12 @@ jobs:
           ARCHIVE="wslsp-${{ github.ref_name }}-${{ matrix.target }}.tar.gz"
 
           tar -czf "$ARCHIVE" -C "$(dirname "$BINARY_PATH")" wslsp
-          sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wslsp-${{ matrix.target }}
-          path: |
-            packages/ws-lsp-bridge/wslsp-*.tar.gz
-            packages/ws-lsp-bridge/wslsp-*.tar.gz.sha256
+          path: packages/ws-lsp-bridge/wslsp-*.tar.gz
 
   build-musl:
     name: Build Linux Musl (${{ matrix.target }})
@@ -124,15 +121,12 @@ jobs:
           ARCHIVE="wslsp-${{ github.ref_name }}-${{ matrix.target }}.tar.gz"
 
           tar -czf "$ARCHIVE" -C "$(dirname "$BINARY_PATH")" wslsp
-          sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wslsp-${{ matrix.target }}
-          path: |
-            packages/ws-lsp-bridge/wslsp-*.tar.gz
-            packages/ws-lsp-bridge/wslsp-*.tar.gz.sha256
+          path: packages/ws-lsp-bridge/wslsp-*.tar.gz
 
   release:
     name: Create GitHub Release
@@ -147,6 +141,10 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      - name: Generate checksums.txt
+        working-directory: dist
+        run: sha256sum wslsp-*.tar.gz > checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

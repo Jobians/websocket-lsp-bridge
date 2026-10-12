@@ -200,7 +200,7 @@ async fn send_error_and_close(
 }
 
 /// Minimal JSON string escaping for error messages (no extra dependency needed).
-fn serde_json_str(s: &str) -> String {
+pub fn serde_json_str(s: &str) -> String {
     let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
     format!("\"{escaped}\"")
 }

@@ -3,24 +3,10 @@
 // Starts a WebSocket server and bridges each connection to an LSP child
 // process. See bridge.rs for the per-connection logic.
 
-mod bridge;
-mod codec;
-mod ipc;
-
 use clap::Parser;
 use tokio::net::TcpListener;
 use tracing::{error, info};
-
-/// WebSocket bridge to connect any editor/client to LSP servers.
-///
-/// Connect your editor to ws://localhost:<PORT>/<name>?args=<lsp-cmd>,<arg1>&type=stdio|ipc&root=/path
-#[derive(Parser)]
-#[command(name = "wslsp", version, about)]
-struct Cli {
-    /// Port for the WebSocket server
-    #[arg(short, long, default_value = "3030", env = "PORT")]
-    port: u16,
-}
+use wslsp::{bridge, Cli};
 
 #[tokio::main]
 async fn main() {

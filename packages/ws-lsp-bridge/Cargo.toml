@@ -7,6 +7,9 @@ license = "MIT"
 repository = "https://github.com/jobians/websocket-lsp-bridge"
 keywords = ["lsp", "websocket", "language-server", "bridge"]
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "wslsp"
 path = "src/main.rs"

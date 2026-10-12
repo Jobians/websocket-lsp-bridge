@@ -11,8 +11,7 @@ It allows **web-based editors** or **remote clients** to connect to any LSP serv
 - 🌐 **Bridge** messages between web editors and LSP servers in real time  
 - 🧠 **Multi-endpoint** support (each LSP runs on its own WebSocket path)  
 - ⚡ **Lightweight** — single static binary, no Node.js or npm required  
-- 🪶 Ideal for browser-based editors, cloud IDEs, or mobile code editors  
-- 📱 Built for **Termux on Android** (aarch64 and armv7)
+- 📱 Built for **Android / Termux** (aarch64, armv7, x86_64) and **Linux musl** (aarch64, armv7)
 
 ---
 
@@ -116,10 +115,18 @@ cargo build --release
 
 ```bash
 cargo install cargo-ndk
-rustup target add aarch64-linux-android armv7-linux-androideabi
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
 # Build for aarch64 (most modern Android phones)
 cargo ndk --target aarch64-linux-android --platform 21 -- build --release
+```
+
+### Cross-compiling for Linux musl (using cross)
+
+```bash
+cargo install cross
+cross build --target aarch64-unknown-linux-musl --release
+cross build --target armv7-unknown-linux-musleabihf --release
 ```
 
 ---

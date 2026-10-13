@@ -1,0 +1,36 @@
+[package]
+name = "wslsp"
+version = "1.1.0"
+edition = "2021"
+description = "WebSocket bridge to connect any editor/client to LSP servers"
+license = "MIT"
+repository = "https://github.com/jobians/websocket-lsp-bridge"
+keywords = ["lsp", "websocket", "language-server", "bridge"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "wslsp"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# WebSocket server
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive", "env"] }
+
+# URL query string parsing
+url = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

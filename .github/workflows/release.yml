@@ -40,7 +40,9 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
 
       - name: Install cargo-ndk
-        uses: taiki-e/install-action@cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
 
       - name: Configure Android NDK
         run: |
@@ -109,7 +111,9 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
 
       - name: Install cross
-        uses: taiki-e/install-action@cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       - name: Build release binary
         working-directory: packages/ws-lsp-bridge
